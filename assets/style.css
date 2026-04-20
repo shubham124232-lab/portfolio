@@ -162,8 +162,9 @@
     .cd { width: 10px; height: 10px; border-radius: 50%; }
     .cd-r { background: #ff5f57; } .cd-y { background: #febc2e; } .cd-g { background: #28c840; }
     .code-file { font-family: var(--font-mono); font-size: 0.6rem; color: var(--fg-muted); margin-left: 4px; }
-    .code-body { font-family: var(--font-mono); font-size: 0.68rem; line-height: 1.9; color: var(--fg-muted); padding: 18px 20px; white-space: pre; overflow: hidden; }
+    .code-body { font-family: var(--font-mono); font-size: 0.68rem; line-height: 1.9; color: var(--fg-muted); padding: 18px 20px; overflow: hidden; }
     .kw{color:#c678dd;} .cls{color:var(--blue);} .str{color:#98c379;} .var{color:#e06c75;} .cmt{color:#5c6370; font-style:italic;}
+    .code-line { display: block; } .code-line.indent { padding-left: 1.4em; } .code-line.indent2 { padding-left: 2.8em; }
 
     /* ══════════════════════════════════════
        TICKER

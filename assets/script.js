@@ -1,88 +1,123 @@
+(function () {
   'use strict';
 
   // ─── Year
-  document.getElementById('year').textContent = new Date().getFullYear();
+  var yearEl = document.getElementById('year');
+  if (yearEl) yearEl.textContent = new Date().getFullYear();
 
-  // ─── Scroll progress bar
-  const pb = document.getElementById('progress-bar');
-  function updateProgress() {
-    const scrolled = window.scrollY;
-    const total = document.documentElement.scrollHeight - window.innerHeight;
-    const pct = total > 0 ? Math.round((scrolled / total) * 100) : 0;
-    pb.style.width = pct + '%';
-    pb.setAttribute('aria-valuenow', pct);
-  }
-
-  // ─── Navbar scroll + active section
-  const navbar = document.getElementById('navbar');
-  const navItems = document.querySelectorAll('.nav-item[data-section]');
-  const sections = document.querySelectorAll('section[id]');
+  // ─── Scroll progress bar + navbar state + active section
+  var pb = document.getElementById('progress-bar');
+  var navbar = document.getElementById('navbar');
+  var navItems = document.querySelectorAll('.nav-item[data-section]');
+  var sections = document.querySelectorAll('section[id]');
 
   function onScroll() {
-    const y = window.scrollY;
-    // scrolled state
+    var y = window.scrollY;
     navbar.classList.toggle('scrolled', y > 20);
-    // progress
-    updateProgress();
-    // active section
-    let current = '';
-    sections.forEach(s => {
-      if (y >= s.offsetTop - 100) current = s.id;
+    var total = document.documentElement.scrollHeight - window.innerHeight;
+    pb.style.width = (total > 0 ? Math.round((y / total) * 100) : 0) + '%';
+    var current = '';
+    sections.forEach(function (s) { if (y >= s.offsetTop - 100) current = s.id; });
+    navItems.forEach(function (a) {
+      var on = a.dataset.section === current;
+      a.classList.toggle('active', on);
+      if (on) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current');
     });
-    navItems.forEach(a => a.classList.toggle('active', a.dataset.section === current));
   }
   window.addEventListener('scroll', onScroll, { passive: true });
   onScroll();
 
   // ─── Mobile menu
-  const hamburger = document.getElementById('hamburgerBtn');
-  const mobMenu = document.getElementById('mobMenu');
-  const hamburgerIcon = document.getElementById('hamburgerIcon');
-  let menuOpen = false;
+  var hamburger = document.getElementById('hamburgerBtn');
+  var mobMenu = document.getElementById('mobMenu');
+  var hamburgerIcon = document.getElementById('hamburgerIcon');
+  var ICON_OPEN = '<path d="M18 6 6 18M6 6l12 12"/>';
+  var ICON_CLOSED = '<path d="M4 6h16M4 12h16M4 18h16"/>';
 
-  hamburger.addEventListener('click', () => {
-    menuOpen = !menuOpen;
-    mobMenu.classList.toggle('open', menuOpen);
-    hamburger.setAttribute('aria-expanded', String(menuOpen));
-    mobMenu.setAttribute('aria-hidden', String(!menuOpen));
-    hamburgerIcon.innerHTML = menuOpen
-      ? '<path d="M18 6 6 18M6 6l12 12"/>'
-      : '<path d="M4 6h16M4 12h16M4 18h16"/>';
+  function setMenu(open) {
+    mobMenu.classList.toggle('open', open);
+    hamburger.setAttribute('aria-expanded', String(open));
+    hamburgerIcon.innerHTML = open ? ICON_OPEN : ICON_CLOSED;
+  }
+  hamburger.addEventListener('click', function () {
+    setMenu(!mobMenu.classList.contains('open'));
+  });
+  mobMenu.addEventListener('click', function (e) {
+    if (e.target.closest('a')) setMenu(false);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && mobMenu.classList.contains('open')) {
+      setMenu(false);
+      hamburger.focus();
+    }
   });
 
-  function closeMenu() {
-    menuOpen = false;
-    mobMenu.classList.remove('open');
-    hamburger.setAttribute('aria-expanded', 'false');
-    mobMenu.setAttribute('aria-hidden', 'true');
-    hamburgerIcon.innerHTML = '<path d="M4 6h16M4 12h16M4 18h16"/>';
-  }
-
   // ─── Scroll reveal
-  const revealEls = document.querySelectorAll('.reveal:not(.visible)');
-  const revealObs = new IntersectionObserver((entries) => {
-    entries.forEach(e => {
-      if (e.isIntersecting) { e.target.classList.add('visible'); revealObs.unobserve(e.target); }
-    });
-  }, { threshold: 0.07, rootMargin: '0px 0px -20px 0px' });
-  revealEls.forEach(el => revealObs.observe(el));
+  var revealEls = document.querySelectorAll('.reveal:not(.visible)');
+  if ('IntersectionObserver' in window) {
+    var revealObs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) { e.target.classList.add('visible'); revealObs.unobserve(e.target); }
+      });
+    }, { threshold: 0.07, rootMargin: '0px 0px -20px 0px' });
+    revealEls.forEach(function (el) { revealObs.observe(el); });
+  } else {
+    revealEls.forEach(function (el) { el.classList.add('visible'); });
+  }
 
-  // ─── Proficiency bars
-  const profFills = document.querySelectorAll('.prof-fill[data-width]');
-  const profObs = new IntersectionObserver((entries) => {
-    entries.forEach(e => {
-      if (e.isIntersecting) { e.target.style.width = e.target.dataset.width + '%'; profObs.unobserve(e.target); }
-    });
-  }, { threshold: 0.3 });
-  profFills.forEach(el => profObs.observe(el));
+  // ─── Contact form: send with fetch so the visitor stays on the page.
+  // Without JavaScript the form still does a normal POST to Formspree.
+  var form = document.getElementById('contactForm');
+  var statusEl = document.getElementById('formStatus');
+  var btn = document.getElementById('formBtn');
+  var EMAIL = 'shubham124232@gmail.com';
 
-  // ─── Keyboard: Escape closes mobile menu
-  document.addEventListener('keydown', e => { if (e.key === 'Escape' && menuOpen) closeMenu(); });
-
-  // ─── Contact form (basic validation feedback)
-  const form = document.querySelector('.contact-form');
-  if (form) {
-    form.addEventListener('submit', e => {
-      // mailto fallback works as-is; if you wire to an API, handle here
+  function showStatus(kind, build) {
+    statusEl.className = 'form-status ' + kind;
+    statusEl.textContent = '';
+    build(statusEl);
+    statusEl.hidden = false;
+  }
+  function showError() {
+    showStatus('err', function (el) {
+      el.appendChild(document.createTextNode('Sorry, the message could not be sent. Please email me directly at '));
+      var a = document.createElement('a');
+      a.href = 'mailto:' + EMAIL;
+      a.textContent = EMAIL;
+      el.appendChild(a);
+      el.appendChild(document.createTextNode('.'));
     });
   }
+
+  if (form && statusEl && btn && window.fetch && window.FormData) {
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      if (btn.disabled) return;
+      var label = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Sending…';
+      statusEl.hidden = true;
+
+      fetch(form.action, {
+        method: 'POST',
+        body: new FormData(form),
+        headers: { Accept: 'application/json' }
+      })
+        .then(function (res) {
+          if (res.ok) {
+            form.reset();
+            showStatus('ok', function (el) {
+              el.textContent = 'Thanks, your message has been sent. I will reply by email.';
+            });
+          } else {
+            showError();
+          }
+        })
+        .catch(showError)
+        .then(function () {
+          btn.disabled = false;
+          btn.textContent = label;
+        });
+    });
+  }
+})();
